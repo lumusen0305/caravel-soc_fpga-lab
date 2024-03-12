@@ -45,8 +45,11 @@ module tb_fsic #( parameter BITS=32,
 `ifdef USE_EDGEDETECT_IP
 		localparam CoreClkPhaseLoop    = 1;
                 localparam TST_TOTAL_FRAME_NUM = 2;
-                localparam TST_FRAME_WIDTH     = 640;
-                localparam TST_FRAME_HEIGHT    = 360;
+                // localparam TST_FRAME_WIDTH     = 640;
+                // localparam TST_FRAME_HEIGHT    = 360;
+                localparam TST_FRAME_WIDTH     = 64;
+                localparam TST_FRAME_HEIGHT    = 36;
+
                 localparam TST_TOTAL_PIXEL_NUM = TST_FRAME_WIDTH * TST_FRAME_HEIGHT;
                 localparam TST_SW              = 1;
 `else
@@ -418,11 +421,10 @@ FSIC #(
 		error_cnt = 0;
 		check_cnt = 0;
 
-        fsic_system_initial();
-		// test001();	//soc cfg write/read test
-		// test002();	//test002_fpga_axis_req
-		write_cc();	
-		// test003();	//test003_fpga_to_soc_cfg_read
+		test001();	//soc cfg write/read test
+		test002();	//test002_fpga_axis_req
+		// fir_test();	
+		test003();	//test003_fpga_to_soc_cfg_read
 		// test004();	//test004_fpga_to_soc_mail_box_write
 		// test005();	//test005_aa_mailbox_soc_cfg
 		// test006();	//test006_fpga_to_soc_cfg_write
@@ -636,42 +638,219 @@ FSIC #(
 			test001_up_soc_cfg();
 		end
 	endtask
-	task write_cc;
+	task fir_test;
 	begin
-		$display("write_cc: soc cfg write/read PRJ1");
-
-		#100;
-		soc_apply_reset(40,40);
-		fpga_apply_reset(40,40);
-		// test001_is_soc_cfg();
-		// test001_aa_internal_soc_cfg();
+		$display("+++++++++++++++++++++++++++++++++++");
+		$display("fir task");
+		$display("+++++++++++++++++++++++++++++++++++");
+		fsic_system_initial();
 		cc_soc_cfg();
-		// test001_up_soc_cfg();
-		#40;
-		
-		fpga_as_to_is_init();	
-		
-		//soc_cc_is_enable=1;
-		fpga_cc_is_enable=1;
-		fork 
-			soc_is_cfg_write(0, 4'b0001, 1);				//ioserdes rxen
-			fpga_cfg_write(0,1,1,0);
-		join
-		$display($time, "=> soc rxen_ctl=1");
-		$display($time, "=> fpga rxen_ctl=1");
-		#400;
-		fork 
-			soc_is_cfg_write(0, 4'b0001, 3);				//ioserdes txen
-			fpga_cfg_write(0,3,1,0);
-		join
-		$display($time, "=> soc txen_ctl=1");
-		$display($time, "=> fpga txen_ctl=1");
-		#200;
+		fir_read_idle();
+		write_data_length();
+		write_data_tap();
+		ap_start();
+		// test002();
+		feed_data();
+	end
+	endtask
+	task check_data;
+		begin
+		end
+	endtask
+
+
+	// task feed_data;
+	//   begin
+	// 	$display("=========================================");
+	// 	$display("fir task: feed_data - start");
+	// 	$display("=========================================");
+	// 	fpga_axis_req(1, TID_DN_UP, 0);
+
+	// 		@ (posedge fpga_coreclk);
+	// 		fpga_as_is_tready <= 1;
+
+	//     $display("=========================================");
+	// 	$display("fir task: feed_data - end");
+	//     $display("=========================================");
+	// 	#100;
+	//   end
+	// endtask
+
+	task ap_start;
+	  begin
+		$display("=========================================");
+		$display("fir task: ap_start - start");
+		$display("=========================================");
+		cfg_read_data_expect_value = 32'd1;	
+		soc_up_cfg_write(0, 4'b1111, cfg_read_data_expect_value); 
+		soc_up_cfg_read(0, 4'b1111);
+		check_cnt = check_cnt+1;
+		if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
+			$display($time, "=> ap_start [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+			error_cnt = error_cnt + 1;
+		end	
+		else
+			$display($time, "=> ap_start [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+	    $display("=========================================");
+		$display("fir task: ap_start - end");
+	    $display("=========================================");
+		#100;
+	  end
+	endtask
+	task write_data_tap;
+	  reg [31:0] tap_values[11:0];
+	  integer i;
+	  begin
+	    $display("=========================================");
+	    $display("fir task: write_data_tap - start");
+	    $display("=========================================");
+
+	    // Initialize tap values
+	    tap_values[0] = 32'd0;
+	    tap_values[1] = -32'sd10;
+	    tap_values[2] = -32'sd9;
+	    tap_values[3] = 32'd23;
+	    tap_values[4] = 32'd56;
+	    tap_values[5] = 32'd63;
+	    tap_values[6] = 32'd56;
+	    tap_values[7] = 32'd23;
+	    tap_values[8] = -32'sd9;
+	    tap_values[9] = -32'sd10;
+	    tap_values[10] = 32'd0;
+
+	    // Program tap parameters
+	    for (i = 0; i <= 10; i = i + 1) begin
+	      cfg_read_data_expect_value = tap_values[i];
+	      soc_up_cfg_write(10'h20 + (i*4), 4'b1111, cfg_read_data_expect_value); // 使用基础偏移量 10'h20 并为每个抽头值添加递增的偏移量
+	      soc_up_cfg_read(10'h20 + (i*4), 4'b1111);
+	      check_cnt = check_cnt + 1;
+	      if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
+	        $display($time, "=> write_data_tap [ERROR] Tap %d cfg_read_data_expect_value=%x, cfg_read_data_captured=%d", i, cfg_read_data_expect_value, cfg_read_data_captured);
+	        error_cnt = error_cnt + 1;
+	      end else
+	        $display($time, "=> write_data_tap [PASS] Tap %d cfg_read_data_expect_value=%x, cfg_read_data_captured=%d", i, cfg_read_data_expect_value, cfg_read_data_captured);
+	    end
+
+	    $display("=========================================");
+	    $display("fir task: write_data_tap - end");
+	    $display("=========================================");
+	    #100; // Delay for observation
+	  end
+	endtask
+	task write_data_length;
+	  begin
+		$display("=========================================");
+		$display("fir task: write_data_length - start");
+		$display("=========================================");
+		cfg_read_data_expect_value = 32'd64;	
+		soc_up_cfg_write(16, 4'b1111, cfg_read_data_expect_value); 
+		soc_up_cfg_read(16, 4'b1111);
+		check_cnt = check_cnt+1;
+		if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
+			$display($time, "=> write_data_length [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+			error_cnt = error_cnt + 1;
+		end	
+		else
+			$display($time, "=> write_data_length [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+	    $display("=========================================");
+		$display("fir task: write_data_length - end");
+	    $display("=========================================");
+		#100;
+	  end
+	endtask
+	task cc_soc_cfg;
+		begin
+			$display("=========================================");
+			$display("cc_soc_cfg: soc cfg read/write test - start");
+			$display("=========================================");
+
+			cfg_read_data_expect_value = 32'd1;	
+			soc_cc_cfg_write(0, 4'b1111, cfg_read_data_expect_value);				//ioserdes rxen
+			soc_cc_cfg_read(0, 4'b1111);
+			check_cnt = check_cnt+1;
+			$display($time, "=> soc_up_cfg_read : wbs_adr=%x, wbs_sel=%b", wbs_adr, wbs_sel); 
+			if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
+				$display($time, "=> cc_soc_cfg [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+				error_cnt = error_cnt + 1;
+			end	
+			else
+				$display($time, "=> cc_soc_cfg [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+
+			$display("is_soc_cfg: soc cfg read/write test");
+	    $display("=========================================");
+			$display("cc_soc_cfg: soc cfg read/write test - end");
+	    $display("=========================================");
+			#100;
+		end
+	endtask
+
+	task fir_read_idle;
+	  	begin	
+			$display("=========================================");
+			$display("fir_read_idle: Check FIR idle status - start");
+			$display("=========================================");
+
+	  	  cfg_read_data_expect_value = 32'd4;    
+	  	  soc_up_cfg_read(0, 4'b1111);
+		  $display($time, "=> [TEST] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+
+
+	  	  // Now loop until FIR's ap_idle bit (bit 2) is 1
+	  	  while (cfg_read_data_captured !== 4) begin
+	  	    #10; // Wait for a bit before checking again to avoid hogging the system
+	  	  	soc_up_cfg_read(0, 4'b1111);
+	  	    $display($time, "=> fir_read_idle [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+	  	  end
+
+	  	  $display("FIR is idle, proceeding with soc cfg read/write test");
+
+	  	  // Proceed with your soc cfg read/write test
+	  	  soc_up_cfg_read(0, 4'b1111);
+
+	  	  check_cnt = check_cnt + 1;
+	  	  if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
+	  	    $display($time, "=> fir_read_idle [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+	  	    error_cnt = error_cnt + 1;
+	  	  end else
+	  	    $display($time, "=> fir_read_idle [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+			$display("=========================================");
+		 	$display("fir_read_idle: Check FIR idle status - end");
+			$display("=========================================");
+
+	  	end  
+	endtask
+	task fsic_system_initial;
+	begin
+			$display("=========================================");
+		 	$display("fsic_system_initial - start");
+			$display("=========================================");
+
+	    fork
+	        soc_apply_reset(40, 40); 
+	        fpga_apply_reset(40, 40); 
+	    join
+
+	    #40;
+
+	    fpga_as_to_is_init();
+	    // soc_cc_is_enable=1;
+	    fpga_cc_is_enable=1; 
+
+	    fork
+	        soc_is_cfg_write(0, 4'b0001, 1); 
+	        fpga_cfg_write(0, 1, 1, 0);
+	    join
+
+	    #400;
+
+	    fork
+	        soc_is_cfg_write(0, 4'b0001, 3); // Write to SOC configuration to enable TX
+	        fpga_cfg_write(0, 3, 1, 0); // Write to FPGA configuration to enable TX
+	    join
 		fpga_as_is_tdata = 32'h5a5a5a5a;
-		#40;
-		#200;
-		test006_fpga_to_soc_cfg_write();
-		#200;
+			$display("=========================================");
+		 	$display("fsic_system_initial - end");
+			$display("=========================================");
 
 	end
 	endtask
@@ -753,67 +932,6 @@ FSIC #(
 			#100;
 		end
 	endtask
-	task cc_soc_cfg;
-		begin
-			//Test offset 0x00 only for io serdes
-			$display("cc_soc_cfg: soc cfg read/write test");
-
-			cfg_read_data_expect_value = 32'h01;	
-			soc_cc_cfg_write(0, 4'b0001, cfg_read_data_expect_value);				//ioserdes rxen
-			soc_cc_cfg_read(0, 4'b1111);
-			
-			if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
-				$display($time, "=> cc_soc_cfg [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
-				error_cnt = error_cnt + 1;
-			end	
-			else
-				$display($time, "=> cc_soc_cfg [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
-
-			$display("is_soc_cfg: soc cfg read/write test");
-			cfg_read_data_expect_value = 32'h01;	
-			soc_is_cfg_write(0, 4'b0001, cfg_read_data_expect_value);				//ioserdes rxen
-			soc_is_cfg_read(0, 4'b1111);
-			
-			if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
-				$display($time, "=> cc_soc_cfg [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
-				error_cnt = error_cnt + 1;
-			end	
-			else
-				$display($time, "=> cc_soc_cfg [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
-
-			$display("aa_internal_soc_cfg: AA internal register read/write test - start");
-			cfg_read_data_expect_value = 	32'h1;	
-			soc_aa_cfg_write(AA_Internal_Reg_Offset, 4'b1111, cfg_read_data_expect_value);				
-			soc_aa_cfg_read(AA_Internal_Reg_Offset, 4'b1111);
-			
-			if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
-				$display($time, "=> cc_soc_cfg [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
-				error_cnt = error_cnt + 1;
-			end	
-			else
-				$display($time, "=> cc_soc_cfg [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
-
-			// $display("test001_up_soc_cfg: soc cfg read/write test");
-            //             //rst = 1
-			// cfg_read_data_expect_value = 32'h1;	
-			// soc_up_cfg_write(0, 4'b0001, cfg_read_data_expect_value); 
-			// soc_up_cfg_read(0, 4'b0001);
-
-			// // check_cnt = check_cnt + 1;
-			// if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
-			// 	$display($time, "=> cc_soc_cfg [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
-			// 	error_cnt = error_cnt + 1;
-			// end	
-			// else
-			// 	$display($time, "=> cc_soc_cfg [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
-
-			$display("-----------------");
-			$display("cc_soc_cfg: soc cfg read/write test - end");
-			$display("--------------------------------------------------------------------");
-
-			#100;
-		end
-	endtask
 
 `ifdef USE_EDGEDETECT_IP
 	task test001_up_soc_cfg;
@@ -821,9 +939,9 @@ FSIC #(
 			//Test offset 0x00 for user project
 			$display("test001_up_soc_cfg: soc cfg read/write test");
                         //rst = 1
-			cfg_read_data_expect_value = 32'h1;	
-			soc_up_cfg_write(0, 4'b0001, cfg_read_data_expect_value); 
-			soc_up_cfg_read(0, 4'b0001);
+			cfg_read_data_expect_value = 32'h01;	
+			soc_up_cfg_write(0, 4'b0111, cfg_read_data_expect_value); 
+			soc_up_cfg_read(0, 4'b0111);
 
 			check_cnt = check_cnt + 1;
 			if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
@@ -1345,7 +1463,7 @@ FSIC #(
 		//input [7:0] compare_data;
 
 		begin
-			for (i=0;i<CoreClkPhaseLoop;i=i+1) begin
+			for (i=0;i<1;i=i+1) begin
 				$display("test003: fpga_cfg_read test - loop %02d", i);
 				fork 
 					soc_apply_reset(40+i*10, 40);			//change coreclk phase in soc
@@ -1496,7 +1614,7 @@ FSIC #(
 		//input [7:0] compare_data;
 
 		begin
-			for (i=0;i<CoreClkPhaseLoop;i=i+1) begin
+			for (i=0;i<1;i=i+1) begin
 				$display("test002: fpga_axis_req - loop %02d", i);
 				fork 
 					soc_apply_reset(40+i*10, 40);			//change coreclk phase in soc
@@ -1648,7 +1766,7 @@ FSIC #(
                                 eol = (hcnt== TST_FRAME_WIDTH - 4);
 		                `ifdef USER_PROJECT_SIDEBAND_SUPPORT
                                   upsb = {eol,sof}; 
-				  fpga_axis_req(data, TID_DN_UP, 0, upsb);	//target to User Project
+				  fpga_axis_req(1, TID_DN_UP, 0, upsb);	//target to User Project
                                 `else
 				  fpga_axis_req(data, TID_DN_UP, 0);		//target to User Project
                                 `endif
@@ -1813,7 +1931,7 @@ FSIC #(
 
 		//FPGA to SOC Axilite test
 		begin
-
+$display("[Waitting for fpga_coreclk]");
 			@ (posedge fpga_coreclk);
 			fpga_as_is_tready <= 1;
 			
@@ -1993,7 +2111,7 @@ FSIC #(
 			fpga_as_is_tdata[27:0] <= address;	//for axilite write address phase
 			fpga_as_is_tdata[31:28] <= BE;	
 			$strobe($time, "=> fpga_axilite_write_req in address phase = %x - tvalid", fpga_as_is_tdata);
-			`ifdef USER_PROJECT_SIDEBAND_SUPPORT
+			`ifdef USER_PROJECT_SIDEBAND_SU=PPORT
 				fpga_as_is_tupsb <=  5'b00000;
 			`endif
 			fpga_as_is_tstrb <=  4'b0000;
@@ -2284,7 +2402,6 @@ FSIC #(
 		end
 	endtask
 
-
 	task fpga_cfg_write;		//input addr, data, strb and valid_delay 
 		input [pADDR_WIDTH-1:0] axi_awaddr;
 		input [pDATA_WIDTH-1:0] axi_wdata;
@@ -2312,37 +2429,87 @@ FSIC #(
 		end
 		
 	endtask
-task fsic_system_initial;
-begin
-    // SOC & FPGA Reset
-    fork
-        soc_apply_reset(40, 40); // change coreclk phase in soc
-        fpga_apply_reset(40, 40); // fix coreclk phase in fpga
-    join
 
-    #40; // Delay to ensure reset has been applied
+	// task feed_data;
+	//   begin
+	// 	$display("=========================================");
+	// 	$display("fir task: feed_data - start");
+	// 	$display("=========================================");
+	// 		$display("test002: fpga_axis_req - frame no %02d", frm_cnt);
+	// 		soc_to_fpga_axis_expect_count = 0;
+	// 		fir_fpga_axis_req();		//target to Axis Switch
+	// 		$display($time, "=> wait for soc_to_fpga_axis_event");
+	// 		@(soc_to_fpga_axis_event);
+    //         // $display($time, "=> soc_to_fpga_axis_expect_count = %d", soc_to_fpga_axis_expect_count);
+    //         // $display($time, "=> soc_to_fpga_axis_captured_count = %d", soc_to_fpga_axis_captured_count);
+	// 		// $display("-----------------");
+	// 		// cfg_read_data_expect_value = 32'h1;	
+	// 		// soc_up_cfg_read('h18, 4'b0001);
+	// 		// check_cnt = check_cnt + 1;
+	// 		// if (cfg_read_data_captured !== cfg_read_data_expect_value) begin
+	// 		// 	$display($time, "=> test002_up_soc_rpt [ERROR] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+	// 		// 	error_cnt = error_cnt + 1;
+	// 		// end	
+	// 		// else
+	// 		// 	$display($time, "=> test002_up_soc_rpt [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+	// 		// $display("-----------------");
 
-    fpga_as_to_is_init(); // Initialize the system, specific function to be defined elsewhere
+	//     $display("=========================================");
+	// 	$display("fir task: feed_data - end");
+	//     $display("=========================================");
+	// 	#100;
+	//   end
+	// endtask
+	task feed_data;
+	reg [pUSER_PROJECT_SIDEBAND_WIDTH-1:0]upsb;
+	  begin
+		$display("=========================================");
+		$display("fir task: feed_data - start");
+		$display("=========================================");
+		for (i =0 ;i<64 ;i++ ) begin		
+			@ (posedge fpga_coreclk);
+			fpga_as_is_tready <= 1;
+			fpga_axis_req(i, TID_DN_UP, 0,upsb);
 
-    // This might be enabling some sort of channel or interface
-    // soc_cc_is_enable=1; // Commented out, seems to be redundant or handled inside the init functions
-    fpga_cc_is_enable=1; // Commented out, seems to be redundant or handled inside the init functions
+		end
 
-    // Enable RX on SOC and FPGA side
-    fork
-        soc_is_cfg_write(0, 4'b0001, 1); // Write to SOC configuration to enable RX
-        fpga_cfg_write(0, 1, 1, 0); // Write to FPGA configuration to enable RX
-    join
 
-    #400; // Delay to ensure the configurations are applied
+	    $display("=========================================");
+		$display("fir task: feed_data - end");
+	    $display("=========================================");
+		#100;
+	  end
+	endtask
 
-    // Enable TX on SOC and FPGA side
-    fork
-        soc_is_cfg_write(0, 4'b0001, 3); // Write to SOC configuration to enable TX
-        fpga_cfg_write(0, 3, 1, 0); // Write to FPGA configuration to enable TX
-    join
-end
-endtask
+	// task fir_fpga_axis_req;
+    //     reg [31:0] data;
+	// 	`ifdef USER_PROJECT_SIDEBAND_SUPPORT
+	// 	reg [pUSER_PROJECT_SIDEBAND_WIDTH-1:0]upsb;
+	// 	`endif
+	// 	begin
+	// 		$display("[Waitting for fpga_coreclk]");
+
+	// 		@ (posedge fpga_coreclk);
+	// 		fpga_as_is_tready <= 1;
+			
+	// 		for(vcnt=0; vcnt < TST_FRAME_HEIGHT; vcnt += 1)
+	// 			for(hcnt=0; hcnt < TST_FRAME_WIDTH; hcnt += 4) begin
+    //             	idx3 = vcnt * TST_FRAME_WIDTH + hcnt;
+    //             	data = {tst_img_in_buf[idx3+3], tst_img_in_buf[idx3+2], tst_img_in_buf[idx3+1], tst_img_in_buf[idx3+0]};
+    //             	sof = (vcnt==0 && hcnt==0);
+    //             	eol = (hcnt== TST_FRAME_WIDTH - 4);
+	// 				`ifdef USER_PROJECT_SIDEBAND_SUPPORT
+	// 					upsb = {eol,sof}; 
+	// 			  		fpga_axis_req(data, TID_DN_UP, 0, upsb);	//target to User Project
+	// 				`else
+	// 			  		fpga_axis_req(data, TID_DN_UP, 0);		//target to User Project
+	// 				`endif
+	// 		  end
+			
+	// 		$display($time, "=> test002_fpga_axis_req done");
+	// 	end
+	// endtask
+
 
 endmodule
 

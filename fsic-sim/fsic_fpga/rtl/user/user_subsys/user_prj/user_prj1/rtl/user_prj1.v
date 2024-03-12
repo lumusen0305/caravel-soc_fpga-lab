@@ -54,21 +54,21 @@ module USER_PRJ1 #( parameter pUSER_PROJECT_SIDEBAND_WIDTH   = 5,
 );
 
 
-assign awready       = 1'b0;
-assign arready       = 1'b0;
-assign wready        = 1'b0;
-assign rvalid        = 1'b0;
-assign rdata         = {pDATA_WIDTH{1'b0}};
-assign ss_tready     = 1'b0;
-assign sm_tvalid     = 1'b0;
-assign sm_tdata      = {pDATA_WIDTH{1'b0}};
+// assign awready       = 1'b0;
+// assign arready       = 1'b0;
+// assign wready        = 1'b0;
+// assign rvalid        = 1'b0;
+// assign rdata         = {pDATA_WIDTH{1'b0}};
+// assign ss_tready     = 1'b0;
+// assign sm_tvalid     = 1'b0;
+// assign sm_tdata      = {pDATA_WIDTH{1'b0}};
 assign sm_tid        = 3'b0;
 `ifdef USER_PROJECT_SIDEBAND_SUPPORT
   assign sm_tupsb      = 5'b0;
 `endif
 assign sm_tstrb      = 4'b0;
 assign sm_tkeep      = 1'b0;
-assign sm_tlast      = 1'b0;
+// assign sm_tlast      = 1'b0;
 assign low__pri_irq  = 1'b0;
 assign High_pri_req  = 1'b0;
 assign la_data_o     = 24'b0;
