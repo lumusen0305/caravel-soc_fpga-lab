@@ -1,0 +1,113 @@
+#-----------------------------------------------------------
+# xsim v2023.1 (64-bit)
+# SW Build 3865809 on Sun May  7 15:04:56 MDT 2023
+# IP Build 3864474 on Sun May  7 20:36:21 MDT 2023
+# SharedData Build 3865790 on Sun May 07 13:33:03 MDT 2023
+# Start of session at: Tue Mar 12 01:10:31 2024
+# Process ID: 14715
+# Current directory: /home/user/Documents/Code/FPGA/caravel-soc_fpga-lab/fsic-sim/fsic_fpga/rtl/user/testbench/tc
+# Command line: xsim -mode tcl -source {xsim.dir/tb_fsic_xelab/xsim_script.tcl}
+# Log file: /home/user/Documents/Code/FPGA/caravel-soc_fpga-lab/fsic-sim/fsic_fpga/rtl/user/testbench/tc/xsim.log
+# Journal file: /home/user/Documents/Code/FPGA/caravel-soc_fpga-lab/fsic-sim/fsic_fpga/rtl/user/testbench/tc/xsim.jou
+# Running On: lumusen, OS: Linux, CPU Frequency: 800.475 MHz, CPU Physical cores: 12, Host memory: 33439 MB
+#-----------------------------------------------------------
+source xsim.dir/tb_fsic_xelab/xsim_script.tcl
+# xsim {tb_fsic_xelab} -autoloadwcfg -tclbatch {log_wave.tcl}
+Time resolution is 1 ps
+open_wave_config /home/user/Documents/Code/FPGA/caravel-soc_fpga-lab/fsic-sim/fsic_fpga/rtl/user/testbench/tc/tb_fsic_xelab.wcfg
+WARNING: Simulation object /tb_fsic/dut/U_MPRJ_IO0/vccd1 was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/U_MPRJ_IO0/vccd2 was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/U_MPRJ_IO0/vssd1 was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/U_MPRJ_IO0/vssd2 was not found in the design.
+WARNING: Simulation object /tb_fsic/vccd1 was not found in the design.
+WARNING: Simulation object /tb_fsic/vccd2 was not found in the design.
+WARNING: Simulation object /tb_fsic/vssd1 was not found in the design.
+WARNING: Simulation object /tb_fsic/vssd2 was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/pre_rd_ptr_reg was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/as_up_tvalid_reg was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/as_aa_tvalid_reg was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/delaynext was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/pre_m_axis was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/as_up_tvalid_reg was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/pre_rd_ptr_reg was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/as_up_tvalid_reg was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/as_aa_tvalid_reg was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/delaynext was not found in the design.
+WARNING: Simulation object /tb_fsic/dut/AXIS_SW0/pre_m_axis was not found in the design.
+source log_wave.tcl
+## log_wave -quiet -verbose -recursive *
+## run all
+                  40=> soc POR Assert
+                  40=> fpga POR Assert
+                  40=> fpga reset Assert
+                  80=> soc POR De-Assert
+                  80=> fpga POR De-Assert
+                 120=> fpga reset De-Assert
+                 185=> fpga_as_to_is_init done
+                 225=> fpga_cfg_write : fpga_axi_awaddr=0000, fpga_axi_awvalid=1, fpga_axi_awready=1, fpga_axi_wdata=00000001, axi_wstrb=1, fpga_axi_wvalid=1, fpga_axi_wready=1
+                 425=> soc_is_cfg_write : wbs_adr=30003000, wbs_sel=0001, wbs_wdata=00000001
+                 865=> fpga_cfg_write : fpga_axi_awaddr=0000, fpga_axi_awvalid=1, fpga_axi_awready=1, fpga_axi_wdata=00000003, axi_wstrb=1, fpga_axi_wvalid=1, fpga_axi_wready=1
+                1025=> soc_is_cfg_write : wbs_adr=30003000, wbs_sel=0001, wbs_wdata=00000003
+write_cc: soc cfg write/read PRJ1
+                1165=> soc POR Assert
+                1205=> soc POR De-Assert
+                1285=> fpga POR Assert
+                1285=> fpga reset Assert
+                1325=> fpga POR De-Assert
+                1365=> fpga reset De-Assert
+cc_soc_cfg: soc cfg read/write test
+                1585=> soc_is_cfg_write : wbs_adr=30005000, wbs_sel=0001, wbs_wdata=00000001
+                1825=> soc_cc_cfg_read : wbs_adr=30005000, wbs_sel=1111
+                1825=> soc wishbone read data result : send soc_cfg_read_event
+                1825=> soc_cc_cfg_read : got soc_cfg_read_event
+                1825=> cc_soc_cfg [PASS] cfg_read_data_expect_value=00000001, cfg_read_data_captured=00000001
+is_soc_cfg: soc cfg read/write test
+                2065=> soc_is_cfg_write : wbs_adr=30003000, wbs_sel=0001, wbs_wdata=00000001
+                2305=> soc_is_cfg_read : wbs_adr=30003000, wbs_sel=1111
+                2305=> soc wishbone read data result : send soc_cfg_read_event
+                2305=> soc_is_cfg_read : got soc_cfg_read_event
+                2305=> cc_soc_cfg [PASS] cfg_read_data_expect_value=00000001, cfg_read_data_captured=00000001
+aa_internal_soc_cfg: AA internal register read/write test - start
+                2625=> soc_aa_cfg_write : wbs_adr=30002100, wbs_sel=1111, wbs_wdata=00000001
+                3225=> soc_aa_cfg_read : wbs_adr=30002100, wbs_sel=1111
+                3225=> soc wishbone read data result : send soc_cfg_read_event
+                3225=> soc_aa_cfg_read : got soc_cfg_read_event
+                3225=> cc_soc_cfg [PASS] cfg_read_data_expect_value=00000001, cfg_read_data_captured=00000001
+-----------------
+cc_soc_cfg: soc cfg read/write test - end
+--------------------------------------------------------------------
+                3385=> fpga_as_to_is_init done
+                3425=> fpga_cfg_write : fpga_axi_awaddr=0000, fpga_axi_awvalid=1, fpga_axi_awready=1, fpga_axi_wdata=00000001, axi_wstrb=1, fpga_axi_wvalid=1, fpga_axi_wready=1
+                3625=> soc_is_cfg_write : wbs_adr=30003000, wbs_sel=0001, wbs_wdata=00000001
+                3625=> soc rxen_ctl=1
+                3625=> fpga rxen_ctl=1
+                4065=> fpga_cfg_write : fpga_axi_awaddr=0000, fpga_axi_awvalid=1, fpga_axi_awready=1, fpga_axi_wdata=00000003, axi_wstrb=1, fpga_axi_wvalid=1, fpga_axi_wready=1
+                4225=> soc_is_cfg_write : wbs_adr=30003000, wbs_sel=0001, wbs_wdata=00000003
+                4225=> soc txen_ctl=1
+                4225=> fpga txen_ctl=1
+                4665=> test006_fpga_to_soc_cfg_write - for AA_Internal_Reg default value check
+                5265=> soc_aa_cfg_read : wbs_adr=30002100, wbs_sel=1111
+                5265=> soc wishbone read data result : send soc_cfg_read_event
+                5265=> soc_aa_cfg_read : got soc_cfg_read_event
+                5265=> test006_fpga_to_soc_cfg_write [ERROR] cfg_read_data_expect_value=00000000, cfg_read_data_captured=00000001
+-----------------
+                5305=> fpga_axilite_write_req in address phase = 10002100 - tvalid
+                5345=> fpga_axilite_write_req in address phase = 10002100 - transfer
+                5345=> fpga_axilite_write_req in data phase = 00000001 - tvalid
+                5385=> fpga_axilite_write_req in data phase = 00000001 - transfer
+               10025=> soc_aa_cfg_read : wbs_adr=30002100, wbs_sel=1111
+               10025=> soc wishbone read data result : send soc_cfg_read_event
+               10025=> soc_aa_cfg_read : got soc_cfg_read_event
+               10025=> test006_fpga_to_soc_cfg_write [PASS] cfg_read_data_expect_value=00000001, cfg_read_data_captured=00000001
+-----------------
+               10025=> test006_fpga_to_soc_cfg_write done
+=============================================================================================
+=============================================================================================
+=============================================================================================
+               10625=> Final result [FAILED], check_cnt = 0002, error_cnt = 0001, please search [ERROR] in the log
+=============================================================================================
+=============================================================================================
+=============================================================================================
+$finish called at time : 10625 ns : File "/home/user/Documents/Code/FPGA/caravel-soc_fpga-lab/fsic-sim/fsic_fpga/rtl/user/testbench/tb_fsic.v" Line 446
+## quit
+INFO: [Common 17-206] Exiting xsim at Tue Mar 12 01:10:34 2024...

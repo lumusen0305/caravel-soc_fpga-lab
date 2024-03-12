@@ -1,0 +1,16 @@
+#-----------------------------------------------------------
+# xsim v2023.1 (64-bit)
+# SW Build 3865809 on Sun May  7 15:04:56 MDT 2023
+# IP Build 3864474 on Sun May  7 20:36:21 MDT 2023
+# SharedData Build 3865790 on Sun May 07 13:33:03 MDT 2023
+# Start of session at: Tue Mar 12 00:36:07 2024
+# Process ID: 11277
+# Current directory: /home/user/Documents/Code/FPGA/caravel-soc_fpga-lab/fsic-sim/fsic_fpga/rtl/user/testbench/tc
+# Command line: xsim -mode tcl -source {xsim.dir/tb_fsic_xelab/xsim_script.tcl}
+# Log file: /home/user/Documents/Code/FPGA/caravel-soc_fpga-lab/fsic-sim/fsic_fpga/rtl/user/testbench/tc/xsim.log
+# Journal file: /home/user/Documents/Code/FPGA/caravel-soc_fpga-lab/fsic-sim/fsic_fpga/rtl/user/testbench/tc/xsim.jou
+# Running On: lumusen, OS: Linux, CPU Frequency: 2070.504 MHz, CPU Physical cores: 12, Host memory: 33439 MB
+#-----------------------------------------------------------
+source xsim.dir/tb_fsic_xelab/xsim_script.tcl
+open_wave_config /home/user/Documents/Code/FPGA/caravel-soc_fpga-lab/fsic-sim/fsic_fpga/rtl/user/testbench/tc/tb_fsic_xelab.wcfg
+source log_wave.tcl
