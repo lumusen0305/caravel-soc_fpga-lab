@@ -176,16 +176,16 @@ module tb_fsic #( parameter BITS=32,
 	`elsif USE_FIR_IP
     	    reg [31:0] soc_to_fpga_axis_expect_count;
 		`ifdef USER_PROJECT_SIDEBAND_SUPPORT
-			reg [(pUSER_PROJECT_SIDEBAND_WIDTH+4+4+1+32-1):0] soc_to_fpga_axis_expect_value[fpga_axis_test_length-1:0];
+			reg [31:0] soc_to_fpga_axis_expect_value[fpga_axis_test_length-1:0];
 		`else
-			reg [(4+4+1+32-1):0] soc_to_fpga_axis_expect_value[fpga_axis_test_length-1:0];
+			reg [31:0] soc_to_fpga_axis_expect_value[fpga_axis_test_length-1:0];
 		`endif
         
         reg [31:0] soc_to_fpga_axis_captured_count;
 		`ifdef USER_PROJECT_SIDEBAND_SUPPORT
-			reg [(pUSER_PROJECT_SIDEBAND_WIDTH+4+4+1+32-1):0] soc_to_fpga_axis_captured[fpga_axis_test_length-1:0];
+			reg [31:0] soc_to_fpga_axis_captured[fpga_axis_test_length-1:0];
 		`else
-			reg [(4+4+1+32-1):0] soc_to_fpga_axis_captured[fpga_axis_test_length-1:0];
+			reg [31:0] soc_to_fpga_axis_captured[fpga_axis_test_length-1:0];
 		`endif
     `else
         reg [6:0] soc_to_fpga_axis_expect_count;
@@ -478,7 +478,10 @@ FSIC #(
 		$finish;
         
     end
-    
+initial begin
+	$dumpfile("FSIC_FIR.vcd");
+	$dumpvars(0, tb_fsic);
+end
 	//WB Master wb_ack_o handling
 	always @( posedge wb_clk or posedge wb_rst) begin
 		if ( wb_rst ) begin
@@ -697,6 +700,126 @@ FSIC #(
 		feed_data();
 	end
 	endtask
+
+	task feed_data;
+	  begin
+		
+		$display("=========================================");
+		$display("fir task: feed_data - start");
+		$display("=========================================");
+		
+			soc_to_fpga_axis_expect_count = 0;
+			soc_to_fpga_axis_captured_count=0;
+			fir_fpga_axis_req();		//target to Axis Switch
+			$display($time, "=> wait for soc_to_fpga_axis_event");
+			@(soc_to_fpga_axis_event);
+            	$display($time, "=> soc_to_fpga_axis_expect_count = %d", soc_to_fpga_axis_expect_count);
+            	$display($time, "=> soc_to_fpga_axis_captured_count = %d", soc_to_fpga_axis_captured_count);
+                for(i=0; i<fpga_axis_test_length; i=i+1)begin	
+					check_cnt = check_cnt + 1;
+                    if (soc_to_fpga_axis_expect_value[i] != soc_to_fpga_axis_captured[i] ) begin
+                        $display($time, "=> feed_data [ERROR] i=%d, soc_to_fpga_axis_expect_value[%d] = %x, soc_to_fpga_axis_captured[%d]  = %x", i, i, soc_to_fpga_axis_expect_value[i], i, soc_to_fpga_axis_captured[i]);
+						error_cnt = error_cnt + 1;
+					end
+					else
+                        $display($time, "=> feed_data [PASS] i=%d, soc_to_fpga_axis_expect_value[%d] = %x, soc_to_fpga_axis_captured[%d]  = %x", i, i, soc_to_fpga_axis_expect_value[i], i, soc_to_fpga_axis_captured[i]);
+					
+                end
+
+	    $display("=========================================");
+		$display("fir task: feed_data - end");
+	    $display("=========================================");
+		#100;
+	  end
+	endtask
+
+	task fir_fpga_axis_req;
+		`ifdef USER_PROJECT_SIDEBAND_SUPPORT
+		reg [pUSER_PROJECT_SIDEBAND_WIDTH-1:0]upsb;
+		`endif
+		begin
+			
+			$display("[Waitting for fpga_coreclk]");
+			@ (posedge fpga_coreclk);
+			fpga_as_is_tready <= 1;
+			$display("fpga_axis_test_length is %d;TST_TOTAL_PIXEL_NUM : %d \n",fpga_axis_test_length,TST_TOTAL_PIXEL_NUM);
+			for(i=0; i<fpga_axis_test_length; i=i+1)begin		//
+			    upsb = {i==(fpga_axis_test_length-1),i==0}; 
+				fpga_axis_req_for_fir(i, TID_DN_UP,upsb);//target to User Project
+				$display("now send id %d",i);
+			end
+
+			
+			$display($time, "=> test002_fpga_axis_req done");
+		end
+	endtask
+
+	task fpga_axis_req_for_fir;
+		input signed [31:0] data;
+		input [1:0] tid;
+		`ifdef USER_PROJECT_SIDEBAND_SUPPORT
+		input [pUSER_PROJECT_SIDEBAND_WIDTH-1:0] upsb;
+		`endif
+		reg [31:0] tdata;
+		`ifdef USER_PROJECT_SIDEBAND_SUPPORT
+			reg [pUSER_PROJECT_SIDEBAND_WIDTH-1:0]tupsb;
+		`endif
+		reg [3:0] tstrb;
+		reg [3:0] tkeep;
+		reg tlast;
+		reg signed [31:0] exp_data;
+    	reg signed [31:0] w1, w2, w3, w4, w5, w6, w7, w8, w9;
+		begin
+			tdata = data;
+			tupsb = 5'b00000;
+			tstrb = 4'b0000;
+			tkeep = 4'b0000;
+            tlast = upsb[1];   //set tlast = eol
+			// exp_data = {0*data+(-10)*(((data-1)<0)? 0:(data-1))+(-9)*(((data-2)<0)? 0:(data-2))+23*(((data-3)<0)? 0:(data-3))+56*(((data-4)<0)? 0:(data-4))+63*(((data-5)<0)? 0:(data-5))+56*(((data-6)<0)? 0:(data-6))+23*(((data-7)<0)? 0:(data-7))+(-9)*(((data-8)<0)? 0:(data-8))+(-10)*(((data-9)<0)? 0:(data-9))+0*(((data-10)<0)? 0:(data-10))};
+			fpga_as_is_tupsb <= tupsb;
+			fpga_as_is_tstrb <=  tstrb;
+			fpga_as_is_tkeep <=  tkeep;
+			fpga_as_is_tlast <=  tlast;
+			fpga_as_is_tdata <= tdata;	//for axis write data
+			w1 = (data - 1 < 0) ? 0 : (data - 1);
+        	w2 = (data - 2 < 0) ? 0 : (data - 2);
+        	w3 = (data - 3 < 0) ? 0 : (data - 3);
+        	w4 = (data - 4 < 0) ? 0 : (data - 4);
+        	w5 = (data - 5 < 0) ? 0 : (data - 5);
+        	w6 = (data - 6 < 0) ? 0 : (data - 6);
+        	w7 = (data - 7 < 0) ? 0 : (data - 7);
+        	w8 = (data - 8 < 0) ? 0 : (data - 8);
+        	w9 = (data - 9 < 0) ? 0 : (data - 9);
+        	// 計算exp_data
+        	exp_data = 0*data- 
+        	           (10 * w1) -
+        	           (9 * w2) + 
+        	           (23 * w3) + 
+        	           (56 * w4) + 
+        	           (63 * w5) + 
+        	           (56 * w6) + 
+        	           (23 * w7) - 
+        	           (9 * w8) - 
+        	           (10 * w9);
+			$display("data is :%d",data);
+			$display("exp_data is :%d",exp_data);
+			$display("==============");
+
+			$strobe($time, "=> fpga_axis_req send data, fpga_as_is_tupsb = %b, fpga_as_is_tstrb = %b, fpga_as_is_tkeep = %b, fpga_as_is_tlast = %b, fpga_as_is_tdata = %d", fpga_as_is_tupsb, fpga_as_is_tstrb, fpga_as_is_tkeep, fpga_as_is_tlast, fpga_as_is_tdata);
+			fpga_as_is_tid <=  tid;		//set target
+			fpga_as_is_tuser <=  TUSER_AXIS;		//for axis req
+			fpga_as_is_tvalid <= 1;
+			soc_to_fpga_axis_expect_value[soc_to_fpga_axis_expect_count] <= { tstrb, tkeep, tlast, exp_data};
+			soc_to_fpga_axis_expect_count <= soc_to_fpga_axis_expect_count+1;
+			$display("+++++++++++++++++++++++");
+			@ (posedge fpga_coreclk);
+			while (fpga_is_as_tready == 0) begin		// wait util fpga_is_as_tready == 1 then change data
+					@ (posedge fpga_coreclk);
+			end
+			fpga_as_is_tvalid <= 0;
+		
+		end
+	endtask
 	task fpga_data_tap;
 	  reg [31:0] tap_values[11:0];
 	  begin
@@ -787,7 +910,7 @@ FSIC #(
 			error_cnt = error_cnt + 1;
 		end	
 		else
-			$display($time, "=> ap_start [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
+		$display($time, "=> ap_start [PASS] cfg_read_data_expect_value=%x, cfg_read_data_captured=%x", cfg_read_data_expect_value, cfg_read_data_captured);
 	    $display("=========================================");
 		$display("fir task: ap_start - end");
 	    $display("=========================================");
@@ -795,7 +918,7 @@ FSIC #(
 	  end
 	endtask
 	task write_data_tap;
-	  reg [31:0] tap_values[11:0];
+	  reg signed [31:0] tap_values[11:0];
 	  integer i;
 	  begin
 	    $display("=========================================");
@@ -2527,106 +2650,7 @@ FSIC #(
 		
 	endtask
 
-	task feed_data;
-	  begin
-		$display("=========================================");
-		$display("fir task: feed_data - start");
-		$display("=========================================");
-			soc_to_fpga_axis_expect_count = 0;
-			fir_fpga_axis_req();		//target to Axis Switch
-			$display($time, "=> wait for soc_to_fpga_axis_event");
-			@(soc_to_fpga_axis_event);
-            	$display($time, "=> soc_to_fpga_axis_expect_count = %d", soc_to_fpga_axis_expect_count);
-            	$display($time, "=> soc_to_fpga_axis_captured_count = %d", soc_to_fpga_axis_captured_count);
-                for(i=0; i<fpga_axis_test_length; i=i+1)begin	
-					check_cnt = check_cnt + 1;
-                    if (soc_to_fpga_axis_expect_value[i] != soc_to_fpga_axis_captured[i] ) begin
-                        $display($time, "=> feed_data [ERROR] i=%d, soc_to_fpga_axis_expect_value[%d] = %x, soc_to_fpga_axis_captured[%d]  = %x", i, i, soc_to_fpga_axis_expect_value[i], i, soc_to_fpga_axis_captured[i]);
-						error_cnt = error_cnt + 1;
-					end
-					else
-                        $display($time, "=> feed_data [PASS] i=%d, soc_to_fpga_axis_expect_value[%d] = %x, soc_to_fpga_axis_captured[%d]  = %x", i, i, soc_to_fpga_axis_expect_value[i], i, soc_to_fpga_axis_captured[i]);
-					
-                end
 
-	    $display("=========================================");
-		$display("fir task: feed_data - end");
-	    $display("=========================================");
-		#100;
-	  end
-	endtask
-
-	task fir_fpga_axis_req;
-        reg [31:0] data;
-		`ifdef USER_PROJECT_SIDEBAND_SUPPORT
-		reg [pUSER_PROJECT_SIDEBAND_WIDTH-1:0]upsb;
-		`endif
-		begin
-			$display("[Waitting for fpga_coreclk]");
-			@ (posedge fpga_coreclk);
-			fpga_as_is_tready <= 1;
-			$display("fpga_axis_test_length is %d;TST_TOTAL_PIXEL_NUM : %d \n",fpga_axis_test_length,TST_TOTAL_PIXEL_NUM);
-			for(i=0; i<fpga_axis_test_length; i=i+1)begin		//
-				if (i==fpga_axis_test_length-1) begin
-					fpga_axis_req_for_fir(i, TID_DN_UP,2'b10);//target to User Project
-				end
-				else if (i==0)begin
-					fpga_axis_req_for_fir(i, TID_DN_UP,2'b01);//target to User Project
-					end
-				else begin
-					fpga_axis_req_for_fir(i, TID_DN_UP,0);//target to User Project
-				end
-				$display("now send id %d",i);
-			end
-
-			
-			$display($time, "=> test002_fpga_axis_req done");
-		end
-	endtask
-
-	task fpga_axis_req_for_fir;
-		input [31:0] data;
-		input [1:0] tid;
-		`ifdef USER_PROJECT_SIDEBAND_SUPPORT
-		input [pUSER_PROJECT_SIDEBAND_WIDTH-1:0] upsb;
-		`endif
-		reg [31:0] tdata;
-		`ifdef USER_PROJECT_SIDEBAND_SUPPORT
-			reg [pUSER_PROJECT_SIDEBAND_WIDTH-1:0]tupsb;
-		`endif
-		reg [3:0] tstrb;
-		reg [3:0] tkeep;
-		reg tlast;
-		
-                reg [31:0] exp_data;
-
-		begin
-			tdata = data;
-			tupsb = 5'b00000;
-			tstrb = 4'b0000;
-			tkeep = 4'b0000;
-            tlast = upsb[1];   //set tlast = eol
-			exp_data = {0*data+(-10)*(((data-1)<0)? 0:(data-1))+(-9)*(((data-2)<0)? 0:(data-2))+23*(((data-3)<0)? 0:(data-3))+56*(((data-4)<0)? 0:(data-4))+63*(((data-5)<0)? 0:(data-5))+56*(((data-6)<0)? 0:(data-6))+23*(((data-7)<0)? 0:(data-7))+(-9)*(((data-8)<0)? 0:(data-8))+(-10)*(((data-9)<0)? 0:(data-9))+0*(((data-10)<0)? 0:(data-10))};
-			fpga_as_is_tupsb <= tupsb;
-			fpga_as_is_tstrb <=  tstrb;
-			fpga_as_is_tkeep <=  tkeep;
-			fpga_as_is_tlast <=  tlast;
-			fpga_as_is_tdata <= tdata;	//for axis write data
-			$strobe($time, "=> fpga_axis_req send data, fpga_as_is_tupsb = %b, fpga_as_is_tstrb = %b, fpga_as_is_tkeep = %b, fpga_as_is_tlast = %b, fpga_as_is_tdata = %x", fpga_as_is_tupsb, fpga_as_is_tstrb, fpga_as_is_tkeep, fpga_as_is_tlast, fpga_as_is_tdata);
-			fpga_as_is_tid <=  tid;		//set target
-			fpga_as_is_tuser <=  TUSER_AXIS;		//for axis req
-			fpga_as_is_tvalid <= 1;
-			soc_to_fpga_axis_expect_value[soc_to_fpga_axis_expect_count] <= { tstrb, tkeep, tlast, exp_data};
-			soc_to_fpga_axis_expect_count <= soc_to_fpga_axis_expect_count+1;
-			$display("+++++++++++++++++++++++");
-			@ (posedge fpga_coreclk);
-			while (fpga_is_as_tready == 0) begin		// wait util fpga_is_as_tready == 1 then change data
-					@ (posedge fpga_coreclk);
-			end
-			fpga_as_is_tvalid <= 0;
-		
-		end
-	endtask
 	
 
 endmodule
